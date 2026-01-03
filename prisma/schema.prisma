@@ -1,0 +1,125 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Tenant {
+  id        String   @id @default(uuid())
+  name      String
+  apiKey    String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  agents             Agent[]
+  sessions           Session[]
+  usageEvents        UsageEvent[]
+  providerCallEvents ProviderCallEvent[]
+
+  @@index([apiKey])
+}
+
+model Agent {
+  id               String   @id @default(uuid())
+  tenantId         String
+  name             String
+  primaryProvider  String // "vendorA" | "vendorB"
+  fallbackProvider String? // "vendorA" | "vendorB" | null
+  systemPrompt     String
+  enabledTools     String   @default("[]") // JSON array of strings
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  tenant             Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  sessions           Session[]
+  usageEvents        UsageEvent[]
+  providerCallEvents ProviderCallEvent[]
+
+  @@index([tenantId])
+}
+
+model Session {
+  id         String   @id @default(uuid())
+  tenantId   String
+  agentId    String
+  customerId String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  tenant             Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  agent              Agent               @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  messages           Message[]
+  usageEvents        UsageEvent[]
+  providerCallEvents ProviderCallEvent[]
+
+  @@index([tenantId, agentId])
+  @@index([tenantId, customerId])
+}
+
+model Message {
+  id        String   @id @default(uuid())
+  sessionId String
+  role      String // "user" | "assistant"
+  content   String
+  metadata  String?  @default("{}") // JSON object
+  createdAt DateTime @default(now())
+
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+}
+
+model UsageEvent {
+  id        String   @id @default(uuid())
+  tenantId  String
+  agentId   String
+  sessionId String
+  provider  String // "vendorA" | "vendorB"
+  tokensIn  Int
+  tokensOut Int
+  cost      Float // in USD
+  createdAt DateTime @default(now())
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  agent   Agent   @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId, agentId, createdAt])
+}
+
+model ProviderCallEvent {
+  id           String   @id @default(uuid())
+  tenantId     String
+  agentId      String?
+  sessionId    String?
+  provider     String // "vendorA" | "vendorB"
+  success      Boolean
+  statusCode   Int?
+  errorMessage String?
+  latencyMs    Int?
+  createdAt    DateTime @default(now())
+
+  tenant  Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  agent   Agent?   @relation(fields: [agentId], references: [id], onDelete: SetNull)
+  session Session? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, createdAt])
+  @@index([provider, success])
+}
+
+model IdempotencyKey {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  tenantId  String
+  response  String // JSON string of the response
+  createdAt DateTime @default(now())
+
+  @@index([key, tenantId])
+}
