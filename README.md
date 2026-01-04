@@ -1,36 +1,85 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Agent Gateway
+
+A production-grade multi-tenant AI agent management platform with unified conversation API, provider abstraction, usage metering, and React dashboard.
+
+## Features
+
+- **Multi-Tenant Architecture**: Complete tenant isolation with API key authentication
+- **Unified Conversation API**: Vendor-agnostic API for managing conversations
+- **Provider Abstraction**: Extensible adapter pattern supporting multiple AI providers (VendorA, VendorB)
+- **Reliability**: Exponential backoff retries, timeouts, and automatic fallback between providers
+- **Usage Metering**: Real-time cost calculation and usage tracking
+- **React Dashboard**: Full-featured UI for agent management, chat testing, and analytics
 
 ## Getting Started
 
-First, run the development server:
+### 1. Installation
+
+```bash
+npm install
+```
+
+### 2. Database Setup
+
+Using SQLite for local development:
+
+```bash
+npm run db:push
+```
+
+### 3. Running the Application
+
+This runs both the Next.js frontend and the API backend:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+The application will be available at `http://localhost:3000`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Seeding Data
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+To bootstrap the database with 2 tenants and 3 agents (Customer Support, Sales, and Technical Support):
 
-## Learn More
+```bash
+npm run db:seed
+```
 
-To learn more about Next.js, take a look at the following resources:
+**Note**: The seed command will output the API keys for the created tenants. Keep these for your API requests.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Sample API Commands
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Replace `TENANT_API_KEY`, `AGENT_ID`, and `SESSION_ID` with actual values from the seed output or dashboard.
 
-## Deploy on Vercel
+### 1. List All Agents
+```bash
+curl -H "X-API-Key: TENANT_API_KEY" http://localhost:3000/api/agents
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### 2. Create a Conversation Session
+```bash
+curl -X POST \
+     -H "X-API-Key: TENANT_API_KEY" \
+     -H "Content-Type: application/json" \
+     -d '{"customerId": "customer-123"}' \
+     http://localhost:3000/api/agents/AGENT_ID/sessions
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### 3. Send a Message
+```bash
+curl -X POST \
+     -H "X-API-Key: TENANT_API_KEY" \
+     -H "X-Idempotency-Key: unique-request-id" \
+     -H "Content-Type: application/json" \
+     -d '{"message": "Hello, I need help with my account."}' \
+     http://localhost:3000/api/sessions/SESSION_ID/messages
+```
+
+### 4. Get Usage Analytics
+```bash
+curl -H "X-API-Key: TENANT_API_KEY" http://localhost:3000/api/usage?period=day
+```
+
+## License
+
+MIT
