@@ -17,9 +17,12 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Send, Bot, User, AlertCircle, Loader2 } from 'lucide-react';
+import { Send, Bot, User, AlertCircle, Loader2, Volume2 } from 'lucide-react';
+import { VoiceRecorder } from '@/components/voice/VoiceRecorder';
 
 import { Agent, ConversationMessage as Message, Session, SendMessageResponse } from '@/app/lib/types';
+import { VoiceChatResponse } from '@/app/lib/services/voice.service';
+import { useAuth } from '@/app/lib/auth-context';
 
 export default function ChatPage() {
   const [agents, setAgents] = useState<Agent[]>([]);
@@ -30,8 +33,10 @@ export default function ChatPage() {
   const [inputMessage, setInputMessage] = useState('');
   const [isLoadingAgents, setIsLoadingAgents] = useState(true);
   const [isSending, setIsSending] = useState(false);
+  const [isProcessingVoice, setIsProcessingVoice] = useState(false);
   const [error, setError] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     loadAgents();
@@ -92,6 +97,7 @@ export default function ChatPage() {
 
     // Add user message to UI immediately
     const tempUserMessage: Message = {
+      id: `temp-${Date.now()}`,
       role: 'user',
       content: userMessage,
       createdAt: new Date().toISOString(),
@@ -113,6 +119,7 @@ export default function ChatPage() {
     } else if (response.data) {
       // Create assistant message object from response
       const assistantMsg: Message = {
+        id: `assistant-${Date.now()}`,
         role: 'assistant',
         content: response.data.assistantMessage,
         createdAt: new Date().toISOString(),
@@ -136,6 +143,73 @@ export default function ChatPage() {
     }
 
     setIsSending(false);
+  };
+
+  const handleVoiceUpload = async (audioBlob: Blob) => {
+    if (!session) return;
+
+    setIsProcessingVoice(true);
+    setError('');
+
+    const formData = new FormData();
+    formData.append('audio', audioBlob, 'recording.wav');
+    formData.append('agentId', selectedAgentId);
+    formData.append('sessionId', session.id);
+    formData.append('idempotencyKey', `voice-${session.id}-${Date.now()}`);
+
+    try {
+      const result = await apiClient.post<VoiceChatResponse>('/voice/chat', formData);
+
+      if (result.error) {
+        throw new Error(result.error);
+      }
+
+      if (!result.data) {
+        throw new Error('No data received from voice chat');
+      }
+
+      const voiceData = result.data;
+
+      // Add user message (transcript) to UI
+      const userMsg: Message = {
+        id: `user-${Date.now()}`,
+        role: 'user',
+        content: voiceData.transcript,
+        createdAt: new Date().toISOString(),
+      };
+
+      // Add assistant message to UI
+      const assistantMsg: Message = {
+        id: `assistant-voice-${Date.now()}`,
+        role: 'assistant',
+        content: voiceData.assistantMessage,
+        createdAt: new Date().toISOString(),
+        metadata: {
+          provider: voiceData.provider,
+          tokensIn: voiceData.tokensIn,
+          tokensOut: voiceData.tokensOut,
+          cost: voiceData.cost,
+          latencyMs: voiceData.metrics.agentLatencyMs,
+          voice: true,
+          metrics: voiceData.metrics,
+        },
+      };
+
+      setMessages((prev) => [...prev, userMsg, assistantMsg]);
+
+      // Play assistant audio
+      if (voiceData.audioUrl) {
+        if (audioRef.current) {
+          audioRef.current.src = voiceData.audioUrl;
+          audioRef.current.play().catch(e => console.error("Audio playback failed", e));
+        }
+      }
+
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setIsProcessingVoice(false);
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -275,11 +349,12 @@ export default function ChatPage() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {messages.map((message) => {
+                  {messages.map((message, index) => {
                     if (!message) return null;
+                    const messageKey = message.id || `msg-${index}`;
                     return (
                       <div
-                        key={message.id}
+                        key={messageKey}
                         className={`flex gap-3 ${
                           message.role === 'user' ? 'justify-end' : 'justify-start'
                         }`}
@@ -296,7 +371,12 @@ export default function ChatPage() {
                               : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100'
                           }`}
                         >
-                          <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                          <p className="text-sm whitespace-pre-wrap flex items-center gap-2">
+                            {message.content}
+                            {message.metadata?.voice && (
+                              <Volume2 className="h-3.5 w-3.5 opacity-50 inline" />
+                            )}
+                          </p>
                           {message.metadata && (
                             <div className="mt-2 pt-2 border-t border-zinc-200 dark:border-zinc-700 text-xs opacity-70">
                               <div className="flex gap-3">
@@ -329,21 +409,29 @@ export default function ChatPage() {
               )}
             </ScrollArea>
 
-            <div className="mt-4 flex gap-2">
-              <Input
-                placeholder={session ? "Type your message..." : "Start a session first"}
-                value={inputMessage}
-                onChange={(e) => setInputMessage(e.target.value)}
-                onKeyPress={handleKeyPress}
+            <div className="mt-4 flex items-center gap-2">
+              <VoiceRecorder 
+                onRecordingComplete={handleVoiceUpload}
+                isProcessing={isProcessingVoice}
                 disabled={!session || isSending}
               />
-              <Button
-                onClick={sendMessage}
-                disabled={!session || !inputMessage.trim() || isSending}
-              >
-                <Send className="h-4 w-4" />
-              </Button>
+              <div className="flex-1 flex gap-2">
+                <Input
+                  placeholder={session ? "Type your message..." : "Start a session first"}
+                  value={inputMessage}
+                  onChange={(e) => setInputMessage(e.target.value)}
+                  onKeyPress={handleKeyPress}
+                  disabled={!session || isSending || isProcessingVoice}
+                />
+                <Button
+                  onClick={sendMessage}
+                  disabled={!session || !inputMessage.trim() || isSending || isProcessingVoice}
+                >
+                  <Send className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
+            <audio ref={audioRef} className="hidden" />
           </CardContent>
         </Card>
       </div>

@@ -9,6 +9,8 @@ A production-grade multi-tenant AI agent management platform with unified conver
 - **Provider Abstraction**: Extensible adapter pattern supporting multiple AI providers (VendorA, VendorB)
 - **Reliability**: Exponential backoff retries, timeouts, and automatic fallback between providers
 - **Usage Metering**: Real-time cost calculation and usage tracking
+- **Voice Chat Integration**: End-to-end voice support with orchestrated STT, LLM processing, and TTS synthesis.
+- **Extensible Voice Architecture**: Support for high-performance audio providers (e.g., Deepgram, AWS Transcribe/Polly, GCP Speech-to-Text).
 - **React Dashboard**: Full-featured UI for agent management, chat testing, and analytics
 
 ## Getting Started
@@ -24,10 +26,19 @@ npm install
 Using SQLite for local development:
 
 ```bash
+npm run db:generate
 npm run db:push
 ```
 
-### 3. Running the Application
+## 3. Seeding Data
+
+To bootstrap the database with 2 tenants and 3 agents (Customer Support, Sales, and Technical Support):
+
+```bash
+npm run db:seed
+```
+
+### 4. Running the Application
 
 This runs both the Next.js frontend and the API backend:
 
@@ -37,13 +48,6 @@ npm run dev
 
 The application will be available at `http://localhost:3000`.
 
-## Seeding Data
-
-To bootstrap the database with 2 tenants and 3 agents (Customer Support, Sales, and Technical Support):
-
-```bash
-npm run db:seed
-```
 
 **Note**: The seed command will output the API keys for the created tenants. Keep these for your API requests.
 
@@ -80,6 +84,3 @@ curl -X POST \
 curl -H "X-API-Key: TENANT_API_KEY" http://localhost:3000/api/usage?period=day
 ```
 
-## License
-
-MIT

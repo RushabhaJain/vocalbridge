@@ -18,6 +18,9 @@ export const GET = withObservability(async function GET(request: NextRequest) {
 
     const start = startDate ? new Date(startDate) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000); // Default: last 30 days
     const end = endDate ? new Date(endDate) : new Date();
+    if (endDate) {
+      end.setHours(23, 59, 59, 999);
+    }
 
     // Get all usage events for the tenant in date range
     const usageEventRepository = getUsageEventRepository();

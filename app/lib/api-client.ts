@@ -21,10 +21,12 @@ export class ApiClient {
     this.apiKey = null;
   }
 
-  private getHeaders(): HeadersInit {
-    const headers: HeadersInit = {
-      'Content-Type': 'application/json',
-    };
+  private getHeaders(isFormData: boolean = false): HeadersInit {
+    const headers: Record<string, string> = {};
+
+    if (!isFormData) {
+      headers['Content-Type'] = 'application/json';
+    }
 
     if (this.apiKey) {
       headers['X-API-Key'] = this.apiKey;
@@ -54,10 +56,11 @@ export class ApiClient {
 
   async post<T>(endpoint: string, body?: unknown): Promise<ApiResponse<T>> {
     try {
+      const isFormData = body instanceof FormData;
       const response = await fetch(`${this.baseUrl}${endpoint}`, {
         method: 'POST',
-        headers: this.getHeaders(),
-        body: body ? JSON.stringify(body) : undefined,
+        headers: this.getHeaders(isFormData),
+        body: isFormData ? (body as FormData) : (body ? JSON.stringify(body) : undefined),
       });
 
       if (!response.ok) {
@@ -74,10 +77,11 @@ export class ApiClient {
 
   async put<T>(endpoint: string, body?: unknown): Promise<ApiResponse<T>> {
     try {
+      const isFormData = body instanceof FormData;
       const response = await fetch(`${this.baseUrl}${endpoint}`, {
         method: 'PUT',
-        headers: this.getHeaders(),
-        body: body ? JSON.stringify(body) : undefined,
+        headers: this.getHeaders(isFormData),
+        body: isFormData ? (body as FormData) : (body ? JSON.stringify(body) : undefined),
       });
 
       if (!response.ok) {

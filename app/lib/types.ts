@@ -58,6 +58,14 @@ export interface MessageMetadata {
   cost?: number;
   latencyMs?: number;
   usedFallback?: boolean;
+  voice?: boolean;
+  metrics?: {
+    sttLatencyMs: number;
+    agentLatencyMs: number;
+    ttsLatencyMs: number;
+    totalLatencyMs: number;
+    audioDuration: number;
+  };
   [key: string]: unknown;
 }
 

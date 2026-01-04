@@ -63,6 +63,11 @@ export default function AnalyticsPage() {
 
   useEffect(() => {
     if (startDate && endDate) {
+      if (new Date(startDate) > new Date(endDate)) {
+        setError('Start date cannot be after end date');
+        setUsageData(null);
+        return;
+      }
       loadUsageData();
     }
   }, [startDate, endDate]);
@@ -127,7 +132,10 @@ export default function AnalyticsPage() {
                 onChange={(e) => setEndDate(e.target.value)}
               />
             </div>
-            <Button onClick={handleRefresh} disabled={isLoading}>
+            <Button 
+              onClick={handleRefresh} 
+              disabled={isLoading || !!(startDate && endDate && new Date(startDate) > new Date(endDate))}
+            >
               {isLoading ? 'Loading...' : 'Refresh'}
             </Button>
           </div>
