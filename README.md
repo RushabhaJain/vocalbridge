@@ -21,7 +21,15 @@ A production-grade multi-tenant AI agent management platform with unified conver
 npm install
 ```
 
-### 2. Database Setup
+### 2. Environment Configuration
+
+Create a `.env` file in the root directory and add your database connection string:
+
+```env
+DATABASE_URL="file:./dev.db"
+```
+
+### 3. Database Setup
 
 Using SQLite for local development:
 
@@ -30,7 +38,9 @@ npm run db:generate
 npm run db:push
 ```
 
-## 3. Seeding Data
+The `db:push` command will automatically create the `dev.db` SQLite file and sync your schema.
+
+### 4. Seeding Data
 
 To bootstrap the database with 2 tenants and 3 agents (Customer Support, Sales, and Technical Support):
 
@@ -38,7 +48,7 @@ To bootstrap the database with 2 tenants and 3 agents (Customer Support, Sales, 
 npm run db:seed
 ```
 
-### 4. Running the Application
+### 5. Running the Application
 
 This runs both the Next.js frontend and the API backend:
 
